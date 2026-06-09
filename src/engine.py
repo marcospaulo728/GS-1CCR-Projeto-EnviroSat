@@ -1,5 +1,7 @@
 from pathlib import Path
+import os
 
+from dotenv import load_dotenv
 from ollama import chat
 
 from src.telemetria import coletar
@@ -8,9 +10,18 @@ from src.alertas import resposta_automatica
 
 class MissionEngine:
     def __init__(self):
+
+        load_dotenv()
+
+        self.model_name = os.getenv(
+            "OLLAMA_MODEL",
+            "gpt-oss:120b"
+        )
+
         BASE_DIR = Path(__file__).resolve().parent.parent
 
         prompt_path = BASE_DIR / "prompts" / "system_prompt.md"
+
         self.system_prompt = (
             prompt_path.read_text(encoding="utf-8")
         )
@@ -61,7 +72,7 @@ PERGUNTA
 {pergunta_usuario}
 """
         resposta = chat(
-            model="gpt-oss:120b",
+            model=self.model_name,
             messages=[
                 {
                     "role": "system",
