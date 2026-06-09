@@ -7,7 +7,6 @@ from datetime import datetime
 
 load_dotenv()
 
-# Identificação da trilha
 TRILHA = "envirosat"
 
 client = Client(
@@ -17,17 +16,6 @@ client = Client(
 
 
 def llm(prompt, system=None, max_tokens=800, temperature=0.3):
-    """Envia prompt ao gpt-oss:120b via Ollama Cloud.
-
-    Parâmetros:
-        prompt       -- texto principal enviado ao modelo
-        system       -- system prompt (opcional); carregado do .md por padrão
-        max_tokens   -- limite de tokens na resposta
-        temperature  -- criatividade do modelo (0 = determinístico)
-
-    Retorna:
-        String com a resposta do modelo ou mensagem de erro.
-    """
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -45,111 +33,58 @@ def llm(prompt, system=None, max_tokens=800, temperature=0.3):
 
 
 def load_system_prompt():
-    """Lê o system prompt do arquivo prompts/system_prompt.md.
-
-    Fallback genérico caso o arquivo não exista — não deve acontecer
-    em produção, mas evita crash durante o desenvolvimento.
-    """
-    path = Path(__file__).parent.parent / "prompt" / "system_prompt.md"
+    path = Path(__file__).parent.parent / "prompts" / "system_prompt.md"
     if path.exists():
         return path.read_text(encoding="utf-8")
-    # Fallback mínimo — substitua pelo seu system_prompt.md real
     return (
-        "Você é ARIA (Ambiental Remote Intelligence Assistant), "
-        "analista de operações do satélite EnviroSat. "
+        "Você é o EnviroSat Mission Control AI. Sua única função é analisar dados operacionais do satélite EnviroSat-1 e auxiliar operadores humanos do centro de controle. "
+        "O EnviroSat-1 monitora: focos de incêndio florestal, desmatamento, áreas de preservação e gera dados ambientais para decisão em solo. "
         "Sempre conecte a análise técnica com o impacto terrestre: "
         "desmatamento, incêndios e monitoramento de áreas protegidas."
     )
 
 
-# ---------------------------------------------------------------------------
-# Classe principal
-# ---------------------------------------------------------------------------
-
 class MissionEngine:
-    """Motor de análise EnviroSat.
 
-    Combina telemetria simulada + lógica de alertas em Python +
-    IA generativa via Ollama Cloud para produzir análises contextualizadas.
-
-    Diferenciais implementados:
-        - Múltiplas chamadas LLM: primeira classifica a severidade em JSON
-          estruturado; segunda gera a análise completa em linguagem natural.
-        - Memória de contexto: mantém histórico dos últimos N ciclos e injeta
-          no prompt, simulando consciência temporal da missão.
-    """
-
-    MAX_HISTORICO = 5  # Número de ciclos mantidos na memória
+    MAX_HISTORICO = 5
 
     def __init__(self):
         self.trilha = TRILHA
         self.system_prompt = load_system_prompt()
-        self.historico: list[dict] = []  # Memória de contexto
-
-    # ------------------------------------------------------------------
-    # Interface pública exigida pela src/ui.py
-    # ------------------------------------------------------------------
+        self.historico: list[dict] = []
 
     def is_ready(self) -> bool:
-        """Sinaliza para a UI que o motor está implementado."""
         return True
 
     def status_snapshot(self) -> str:
-        """Retorna um painel de texto com o estado atual da telemetria.
-
-        Chamado pelo comando /status na CLI.
-        """
         dados, alertas = self._coletar()
         self._registrar_ciclo(dados, alertas)
         severidade = self._classificar_severidade(dados, alertas)
         return self._montar_painel(dados, alertas, severidade)
 
     def analyze(self, pergunta_usuario: str) -> str:
-        """Analisa a pergunta com base na telemetria + alertas + IA.
-
-        Fluxo:
-            1. Coleta telemetria       → src/telemetria.py
-            2. Avalia alertas          → src/alertas.py
-            3. Registra ciclo          → memória de contexto
-            4. 1ª chamada LLM          → classifica severidade (JSON)
-            5. 2ª chamada LLM          → análise completa em linguagem natural
-            6. Retorna resposta final
-        """
         dados, alertas = self._coletar()
         self._registrar_ciclo(dados, alertas)
 
-        # --- 1ª chamada LLM: classificação de severidade (saída estruturada) ---
         severidade = self._classificar_severidade(dados, alertas)
         nivel = severidade.get("severidade", "NORMAL")
         motivo = severidade.get("motivo", "")
 
-        # --- 2ª chamada LLM: análise completa ---
         prompt = self._montar_prompt_analise(
             dados, alertas, nivel, motivo, pergunta_usuario
         )
         return llm(prompt, system=self.system_prompt, max_tokens=800, temperature=0.3)
 
-    # ------------------------------------------------------------------
-    # Métodos internos — coleta e formatação
-    # ------------------------------------------------------------------
-
     def _coletar(self) -> tuple[dict, list[str]]:
-        """Importa e executa telemetria + alertas.
-
-        Retorna:
-            (dados, alertas) onde dados é dict e alertas é list[str].
-        """
         try:
             from src.telemetria import coletar
             from src.alertas import avaliar
         except ImportError as e:
-            # Dados de fallback para não travar a interface durante dev
             dados_fallback = {
-                "sensor_termico_celsius": 38.5,
-                "sensor_optico_status": "OPERACIONAL",
-                "buffer_imagens_nao_transmitidas": 12,
-                "precisao_geolocalizacao_metros": 15.3,
-                "energia_disponivel_pct": 72.0,
+                "temperatura": 38,
+                "energia_solar": 85,
+                "bateria": 90,
+                "precisao_geolocalizacao": 95
             }
             return dados_fallback, [f"⚠️  Módulo não encontrado: {e}"]
 
@@ -158,7 +93,6 @@ class MissionEngine:
         return dados, alertas
 
     def _registrar_ciclo(self, dados: dict, alertas: list[str]) -> None:
-        """Adiciona o ciclo atual ao histórico e descarta os mais antigos."""
         ciclo = {
             "timestamp": datetime.now().strftime("%H:%M:%S"),
             "dados": dict(dados),
@@ -168,16 +102,7 @@ class MissionEngine:
         if len(self.historico) > self.MAX_HISTORICO:
             self.historico.pop(0)
 
-    # ------------------------------------------------------------------
-    # Métodos internos — chamadas LLM
-    # ------------------------------------------------------------------
-
     def _classificar_severidade(self, dados: dict, alertas: list[str]) -> dict:
-        """1ª chamada LLM: classifica a severidade e retorna JSON estruturado.
-
-        Força a IA a responder apenas com JSON para parse seguro no Python.
-        Fallback automático se o JSON não for parseável.
-        """
         prompt = (
             "Analise os dados de telemetria do satélite EnviroSat abaixo "
             "e classifique a severidade da missão.\n\n"
@@ -191,7 +116,6 @@ class MissionEngine:
         resposta = llm(prompt, max_tokens=120, temperature=0.1)
 
         try:
-            # Remove marcadores markdown que o modelo eventualmente inclui
             resposta_limpa = (
                 resposta.strip()
                 .replace("```json", "")
@@ -200,7 +124,6 @@ class MissionEngine:
             )
             return json.loads(resposta_limpa)
         except (json.JSONDecodeError, ValueError):
-            # Fallback determinístico baseado em alertas
             if len(alertas) >= 3:
                 nivel = "CRÍTICO"
             elif len(alertas) >= 1:
@@ -217,7 +140,6 @@ class MissionEngine:
         motivo: str,
         pergunta: str,
     ) -> str:
-        """Monta o prompt completo injetando telemetria + alertas + histórico."""
 
         alertas_fmt = (
             "\n".join(f"  ❗ {a}" for a in alertas)
@@ -243,16 +165,10 @@ class MissionEngine:
             "Se a situação for crítica, indique ações imediatas recomendadas."
         )
 
-    # ------------------------------------------------------------------
-    # Métodos internos — formatação de texto
-    # ------------------------------------------------------------------
-
     def _formatar_dados(self, dados: dict) -> str:
-        """Converte o dicionário de telemetria em texto legível."""
         return "\n".join(f"  • {chave}: {valor}" for chave, valor in dados.items())
 
     def _formatar_historico(self) -> str:
-        """Formata o histórico de ciclos para injeção no prompt."""
         if not self.historico:
             return "  Nenhum ciclo anterior registrado nesta sessão."
 
@@ -272,7 +188,6 @@ class MissionEngine:
         return "\n".join(linhas)
 
     def _montar_painel(self, dados: dict, alertas: list, severidade: dict) -> str:
-        """Monta o painel de texto exibido pelo comando /status."""
         nivel = severidade.get("severidade", "DESCONHECIDO")
         emoji_nivel = {"NORMAL": "🟢", "ATENÇÃO": "🟡", "CRÍTICO": "🔴"}.get(nivel, "⚪")
         agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")

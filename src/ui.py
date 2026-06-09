@@ -1,4 +1,4 @@
-"""Interface CLI estilo Claude Code — usa Rich + prompt-toolkit."""
+"""Interface CLI estilo Claude Code — usa Rich + prompts-toolkit."""
 
 from rich.console import Console
 from rich.panel import Panel
@@ -10,7 +10,7 @@ from datetime import datetime
 
 # --- Instâncias globais usadas em todas as funções ---
 console = Console()
-session = PromptSession(style=Style.from_dict({"prompt": "#06B6D4 bold"}))
+session = PromptSession(style=Style.from_dict({"prompts": "#06B6D4 bold"}))
 
 
 def show_banner():
