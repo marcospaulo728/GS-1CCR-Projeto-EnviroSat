@@ -2,6 +2,11 @@ def avaliar(dados):
 
     alertas = []
 
+    if dados["temperatura"] > 70:
+        alertas.append("Temperatura crítica dos sistemas internos.")
+    elif dados["temperatura"] > 60:
+        alertas.append("Temperatura elevada.")
+
     if dados["energia_solar"] < 20:
         alertas.append(
             "Energia insuficiente para transmissão das imagens ambientais."
@@ -32,6 +37,11 @@ def avaliar(dados):
 def resposta_automatica(dados):
 
     acoes = []
+
+    if dados["temperatura"] > 70:
+        acoes.append(
+            "Reduzir atividades não essenciais e iniciar sistema de resfriamento"
+        )
 
     if dados["bateria"] < 20:
         acoes.append(

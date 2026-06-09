@@ -1,3 +1,5 @@
-ollama==0.5.1
-python-dotenv==1.1.1
-rich==14.0.0
+ollama==0.6.2
+python-dotenv==1.2.2
+rich==15.0.0
+prompt-toolkit==3.0.52
+pyfiglet==1.0.4
