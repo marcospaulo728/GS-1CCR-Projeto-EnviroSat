@@ -118,8 +118,12 @@ GS-1CCR-Projeto-EnviroSat/
 │   ├── alertas.py           # Thresholds, geração de alertas e respostas automáticas
 │   └── telemetria.py        # Geração dos dados simulados do satélite
 │
-└── prompt/
-    └── system_prompt.md     # System prompt da IA (persona ARIA)
+├── prompts/
+│   └── system_prompt.md     # System prompt da IA (persona ARIA)
+│
+└── assets/
+    ├── screenshot_banner.png     # Print do banner
+    └── screenshot_analise.png     # Print da análise
 ```
 
 ---
@@ -202,15 +206,14 @@ Se o EnviroSat-1 operar com disponibilidade de 99% por 12 meses, estima-se o mon
 - `telemetria.py` gera dados aleatórios — não há séries temporais realistas baseadas em órbita real.
 - O sistema não persiste histórico entre sessões; a memória de contexto é reiniciada a cada execução de `python main.py`.
 - A classificação de severidade por JSON depende da consistência do modelo; o fallback determinístico é conservador (conta alertas) e pode classificar como CRÍTICO cenários que seriam apenas ATENÇÃO.
-- O `system_prompt.md` não é versionado neste repositório por questões de iteração — o fallback em `engine.py` garante funcionamento mesmo sem o arquivo.
 - Não há autenticação ou controle de acesso na CLI — adequado apenas para uso em ambiente de desenvolvimento/demo.
 
 ---
 
 ## 🎬 Vídeo de demonstração
 
-🔗 *(link do YouTube)*
+🔗 https://youtu.be/suR5fFcI4rE
 
 ---
 
-*FIAP · Ciência da Computação · Global Solution 2026.1 · Prompt Engineering and Artificial Intelligence*
+*FIAP · Ciência da Computação · Global Solution 2026.1 · Prompt Engineering and Artificial Intelligence & Soluções em Energias Renováveis E Sustentáveis*
